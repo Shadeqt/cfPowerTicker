@@ -1,0 +1,9 @@
+## Interface: 11508
+## Title:     cfPowerTicker
+## Notes:     Shows a spark on the mana/energy bar indicating tick timing
+## Author:    Cowfoot
+## Version:   1.0
+## SavedVariablesPerCharacter: cfPowerTickerDB
+
+cfPowerTicker.lua
+Settings.lua
