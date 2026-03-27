@@ -1,4 +1,6 @@
 local K = cfPowerTicker.KEYS
+local _, playerClass = UnitClass("player")
+local IS_WARRIOR = playerClass == "WARRIOR"
 
 local panel = CreateFrame("Frame", "cfPowerTickerSettingsPanel")
 panel.name = "cfPowerTicker"
@@ -67,6 +69,13 @@ end
 local powerTicker = CreateCheckbox(title, "Show Power Ticker", K.ENABLED)
 local manaFull = CreateCheckbox(powerTicker, "Show at Full Mana", K.MANA_FULL, nil, powerTicker)
 local energyFull = CreateCheckbox(manaFull, "Show at Full Energy", K.ENERGY_FULL, 300, powerTicker)
+
+if IS_WARRIOR then
+	for _, cb in ipairs({powerTicker, manaFull, energyFull}) do
+		cb:Disable()
+		cb.Text:SetTextColor(0.5, 0.5, 0.5)
+	end
+end
 
 local category = Settings.RegisterCanvasLayoutCategory(panel, panel.name, panel.name)
 Settings.RegisterAddOnCategory(category)

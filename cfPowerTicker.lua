@@ -15,6 +15,9 @@ local DEFAULTS = {
 
 local POWER = { MANA = 0, RAGE = 1, ENERGY = 3 }
 
+local _, class = UnitClass("player")
+if class == "WARRIOR" then return end
+
 local TICK_INTERVAL = 2
 local FSR_DURATION = 5
 
