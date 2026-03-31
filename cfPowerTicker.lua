@@ -117,11 +117,10 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 	elseif event == "UNIT_POWER_UPDATE" then
 		local now = GetTime()
 		local power = UnitPower("player")
-		currentPowerType = UnitPowerType("player")
 
 		if power > lastPower then
 			local gain = power - lastPower
-			if currentPowerType ~= POWER.MANA or gain >= GetManaRegen() * 2 * 0.9 then
+			if currentPowerType ~= POWER.MANA or gain >= GetManaRegen() * TICK_INTERVAL * 0.9 then
 				tickEndTime = now + TICK_INTERVAL
 			end
 		elseif power < lastPower and currentPowerType == POWER.MANA then
