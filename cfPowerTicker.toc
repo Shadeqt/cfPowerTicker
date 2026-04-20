@@ -5,5 +5,7 @@
 ## Version:   1.0
 ## SavedVariablesPerCharacter: cfPowerTickerDB
 
+Init.lua
 cfPowerTicker.lua
-Settings.lua
+GUI/_Factory.lua
+GUI/Settings.lua
