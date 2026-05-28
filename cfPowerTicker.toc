@@ -6,6 +6,6 @@
 ## SavedVariablesPerCharacter: cfPowerTickerDB
 
 Init.lua
-cfPowerTicker.lua
 GUI/_Factory.lua
 GUI/Settings.lua
+Features/PowerTicker.lua

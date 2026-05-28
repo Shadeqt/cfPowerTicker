@@ -31,6 +31,7 @@ end
 addon.db = cfPowerTickerDB
 
 EventUtil.ContinueOnAddOnLoaded("cfPowerTicker", function()
+	addon.InitSettings()
 	if not addon.disabledClass and addon.db[addon.KEYS.ENABLED] then
 		addon.Enable()
 	end
