@@ -2,10 +2,6 @@
 ## Title:     cfPowerTicker
 ## Notes:     Shows a spark on the mana/energy bar indicating tick timing
 ## Author:    Cowfoot
-## Version:   1.0
-## SavedVariablesPerCharacter: cfPowerTickerDB
+## Version:   2.0
 
-Init.lua
-GUI/_Factory.lua
-GUI/Settings.lua
-Features/PowerTicker.lua
+cfPowerTicker.lua
