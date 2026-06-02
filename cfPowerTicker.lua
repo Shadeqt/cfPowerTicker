@@ -45,7 +45,7 @@ overlay:SetScript("OnUpdate", function()
         spark:SetVertexColor(1, 1, 1)
     end
 
-    spark:SetPoint("CENTER", PlayerFrameManaBar, "LEFT", PlayerFrameManaBar:GetWidth() * progress, -1)
+    spark:SetPoint("CENTER", PlayerFrameManaBar, "LEFT", PlayerFrameManaBar:GetWidth() * progress, 0)
     spark:Show()
 end)
 
