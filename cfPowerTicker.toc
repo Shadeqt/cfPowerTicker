@@ -1,7 +1,9 @@
 ## Interface: 11508
 ## Title:     cfPowerTicker
-## Notes:     Shows a spark on the mana/energy bar indicating tick timing
+## Notes:     Shows a spark on the mana/energy bar indicating tick timing; for druids, adds a form mana bar with its own FSR/mana-tick spark
 ## Author:    Cowfoot
-## Version:   2.0
+## Version:   3.0
 
+Core.lua
 cfPowerTicker.lua
+cfDruidBar.lua

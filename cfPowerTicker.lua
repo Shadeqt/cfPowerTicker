@@ -1,74 +1,87 @@
--- Warriors only use rage (no regen tick); the addon adds nothing for them.
-local _, class = UnitClass("player")
-if class == "WARRIOR" then return end
+-- Power-tick spark on the player's mana/energy bar: a white spark sweeping each 2s
+-- regen tick, plus a red five-second-rule countdown for mana users. Shared constants,
+-- the tick clock, and the spark component all live in Core.lua (loaded first).
+local _, addon = ...
+if not addon.active then return end   -- warriors have no regen tick
 
-local TICK_INTERVAL = 2
-local FSR_DURATION = 5
+local clock = addon.clock
+local TICK_INTERVAL = addon.TICK_INTERVAL
 
 local powerType = UnitPowerType("player")
 local lastPower = UnitPower("player")
-local tickEndTime = GetTime() + TICK_INTERVAL
-local fsrEndTime = 0
 
-local overlay = CreateFrame("Frame", nil, PlayerFrame)
-overlay:SetAllPoints(PlayerFrameManaBar)
-overlay:SetFrameLevel(PlayerFrame:GetFrameLevel() + 10)
+-- "Bad clip" warning. Mana is spent (and the five-second rule starts) when a cast
+-- completes, so the efficient play is for a regen tick to land in the last 0.5s before
+-- completion — banking that tick right before regen locks out. Set at cast start by
+-- projecting the cast's end onto the tick clock; held for the cast's duration; cleared
+-- when the cast ends. FSR red takes priority over this yellow (see Core's color order).
+local badClip = false
 
-local spark = overlay:CreateTexture(nil, "OVERLAY")
-spark:SetTexture("Interface\\CastingBar\\UI-CastingBar-Spark")
-spark:SetSize(32, 32)
-spark:SetBlendMode("ADD")
-spark:Hide()
-
-overlay:SetScript("OnUpdate", function()
-    -- Rage: never. Mana: hide at full. Energy: always (rogues/cat — useful even at max).
-    if powerType == Enum.PowerType.Rage
-       or (powerType == Enum.PowerType.Mana
-           and UnitPower("player") >= UnitPowerMax("player")) then
-        spark:Hide()
-        return
+-- Whether the spark has anything to draw right now.
+-- Rage: never. Mana: not at full. Energy: always (rogues/cat — no event fires at
+-- full energy, so the loop must keep running to re-anchor the tick itself).
+local function shouldAnimate()
+    if powerType == Enum.PowerType.Rage then
+        return false
     end
-
-    local now = GetTime()
-    -- No UNIT_POWER_UPDATE fires at full energy; re-anchor tickEndTime to the next
-    -- 2s boundary so the spark keeps advancing (modulo handles many missed ticks).
-    if tickEndTime <= now then
-        tickEndTime = now + TICK_INTERVAL - ((now - tickEndTime) % TICK_INTERVAL)
+    if powerType == Enum.PowerType.Mana then
+        return UnitPower("player") < UnitPowerMax("player")
     end
+    return true
+end
 
-    local progress
-    if powerType == Enum.PowerType.Mana and fsrEndTime > now then
-        progress = (fsrEndTime - now) / FSR_DURATION
-        spark:SetVertexColor(1, 0, 0)
-    else
-        progress = 1 - (tickEndTime - now) / TICK_INTERVAL
-        spark:SetVertexColor(1, 1, 1)
+-- Red FSR countdown while a mana user is inside the five-second rule, else the white
+-- 2s tick. Visibility (SetShown below) gates the OnUpdate, so this only runs when there
+-- is actually something to animate.
+local overlay = addon.NewTickSpark(PlayerFrameManaBar, function(now)
+    if powerType == Enum.PowerType.Mana then
+        local fsr = addon.FsrProgress(now)
+        if fsr then return fsr, true end        -- red five-second-rule countdown
     end
-
-    spark:SetPoint("CENTER", PlayerFrameManaBar, "LEFT", PlayerFrameManaBar:GetWidth() * progress, 0)
-    spark:Show()
+    return clock:TickProgress(now), false, badClip   -- white tick, or yellow on a bad clip
 end)
+
+-- Watch the player's casts. On start, project the cast's completion onto the tick clock:
+-- if it lands more than 0.5s past the last tick boundary, the cast wastes the tick → yellow.
+-- Instants have no cast time (UnitCastingInfo returns nil) and are ignored.
+local casts = CreateFrame("Frame")
+casts:SetScript("OnEvent", function(_, event)
+    if event == "UNIT_SPELLCAST_START" then
+        local _, _, _, _, endTimeMS = UnitCastingInfo("player")
+        if endTimeMS then
+            local castEnd = endTimeMS / 1000               -- GetTime()-based seconds
+            local gap = (castEnd - clock.tickEnd) % TICK_INTERVAL
+            badClip = gap > 0.5
+        end
+    else
+        badClip = false                                    -- STOP / FAILED / INTERRUPTED
+    end
+end)
+casts:RegisterUnitEvent("UNIT_SPELLCAST_START", "player")
+casts:RegisterUnitEvent("UNIT_SPELLCAST_STOP", "player")
+casts:RegisterUnitEvent("UNIT_SPELLCAST_FAILED", "player")
+casts:RegisterUnitEvent("UNIT_SPELLCAST_INTERRUPTED", "player")
+
+-- Start in the correct state instead of waiting for the first event (e.g. a full-mana
+-- caster logs in parked; an energy user logs in running).
+overlay:SetShown(shouldAnimate())
 
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event)
     if event == "UNIT_DISPLAYPOWER" then
         powerType = UnitPowerType("player")
         lastPower = UnitPower("player")
+        overlay:SetShown(shouldAnimate())
         return
     end
-    -- UNIT_POWER_UPDATE: detect ticks (real out-of-FSR mana ticks deliver ~baseRegen*2;
-    -- partial FSR regen falls short of the 0.9 threshold) and cast-driven mana drops.
-    local now = GetTime()
+    -- UNIT_POWER_UPDATE / UNIT_MAXPOWER: a real gain re-anchors the shared tick clock.
     local power = UnitPower("player")
-    if power > lastPower then
-        local gain = power - lastPower
-        if powerType ~= Enum.PowerType.Mana or gain >= GetManaRegen() * TICK_INTERVAL * 0.9 then
-            tickEndTime = now + TICK_INTERVAL
-        end
-    elseif power < lastPower and powerType == Enum.PowerType.Mana then
-        fsrEndTime = now + FSR_DURATION
-    end
+    addon.NoteGain(GetTime(), power, lastPower, powerType == Enum.PowerType.Mana)
     lastPower = power
+    -- Drive visibility from a current-vs-max predicate (not "a spend was seen") so the
+    -- loop parks the instant mana caps and wakes on any change that revives it.
+    overlay:SetShown(shouldAnimate())
 end)
 events:RegisterUnitEvent("UNIT_POWER_UPDATE", "player")
+events:RegisterUnitEvent("UNIT_MAXPOWER", "player")
 events:RegisterUnitEvent("UNIT_DISPLAYPOWER", "player")
