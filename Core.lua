@@ -88,12 +88,12 @@ function addon.NoteGain(now, current, last, isMana)
 end
 
 -- Line colors borrowed from class colors: FSR = Death Knight red, regen tick = Priest
--- white, bad clip = Monk jade. Pulled from RAID_CLASS_COLORS so they track the client;
--- MONK isn't in the Classic Era table, so fall back to its known color.
+-- white, bad clip = Rogue yellow. Pulled from RAID_CLASS_COLORS so they track the client
+-- (all three classes are present in the Classic Era table).
 local CC      = RAID_CLASS_COLORS
 local FSR_C   = CC.DEATHKNIGHT
 local TICK_C  = CC.PRIEST
-local CLIP_C  = CC.MONK
+local CLIP_C  = CC.ROGUE
 
 -- A self-animating tick spark bound to `host` (a StatusBar/region). Each frame it
 -- re-anchors the shared clock and calls `compute(now)`, which returns either

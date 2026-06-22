@@ -15,7 +15,25 @@ local lastPower = UnitPower("player")
 -- completion — banking that tick right before regen locks out. Set at cast start by
 -- projecting the cast's end onto the tick clock; held for the cast's duration; cleared
 -- when the cast ends. FSR red takes priority over this yellow (see Core's color order).
+-- Gated to MANA-COST casts only: the bank-the-tick concern is mana-specific, so a free
+-- cast (or one paid in energy/rage) never triggers the recolor.
 local badClip = false
+
+-- True if `spellID` has a nonzero mana cost. Non-mana / free casts return false, so the
+-- bad-clip warning skips them entirely. Resolve the power-cost API once, tolerating either
+-- the namespaced C_Spell function or the legacy global depending on the client build.
+local GetSpellPowerCost = (C_Spell and C_Spell.GetSpellPowerCost) or GetSpellPowerCost
+local function CostsMana(spellID)
+    if not spellID or not GetSpellPowerCost then return false end
+    local costs = GetSpellPowerCost(spellID)
+    if not costs then return false end
+    for _, cost in ipairs(costs) do
+        if cost.type == Enum.PowerType.Mana and cost.cost > 0 then
+            return true
+        end
+    end
+    return false
+end
 
 -- Whether the spark has anything to draw right now.
 -- Rage: never. Mana: not at full. Energy: always (rogues/cat — no event fires at
@@ -43,12 +61,14 @@ end)
 
 -- Watch the player's casts. On start, project the cast's completion onto the tick clock:
 -- if it lands more than 0.5s past the last tick boundary, the cast wastes the tick → yellow.
--- Instants have no cast time (UnitCastingInfo returns nil) and are ignored.
+-- Only mana-cost casts qualify (CostsMana); instants have no cast time (UnitCastingInfo
+-- returns nil) and are ignored either way.
 local casts = CreateFrame("Frame")
-casts:SetScript("OnEvent", function(_, event)
+casts:SetScript("OnEvent", function(_, event, _, _, spellID)
     if event == "UNIT_SPELLCAST_START" then
+        badClip = false
         local _, _, _, _, endTimeMS = UnitCastingInfo("player")
-        if endTimeMS then
+        if endTimeMS and CostsMana(spellID) then
             local castEnd = endTimeMS / 1000               -- GetTime()-based seconds
             local gap = (castEnd - clock.tickEnd) % TICK_INTERVAL
             badClip = gap > 0.5
